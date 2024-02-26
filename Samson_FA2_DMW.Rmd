@@ -1,0 +1,193 @@
+---
+title: "FA2_Samson_DM&W"
+output: html_document
+date: "2024-02-26"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```#1.1	Import (5 points)
+
+library(tidyverse)
+
+# Set your working directory
+setwd("C:/Users/User/OneDrive/FRESHMAN/3rd yr - 2nd Sem/Data Mining and Wrangling")
+
+# Load the data
+load("ml_pay.rdata")
+
+# Print the contents of ml_pay
+print(ml_pay)
+
+# Check the dimensions of the data
+dim(ml_pay)
+
+#####################################################################
+#1.2	Tidy (15 points)
+
+# Load the tidyverse package for data manipulation
+library(tidyverse)
+
+# Tidy aggregate data
+# Select relevant columns from ml_pay data frame and remove duplicate rows
+mlb_aggregate <- ml_pay %>%
+  select(Team.name.2014, payroll, avgwin) %>%
+  distinct()
+
+# Renaming columns for clarity
+colnames(mlb_aggregate) <- c("team", "payroll_aggregate", "pct_wins_aggregate")
+
+# Print the tibble
+print(mlb_aggregate)
+
+# Tidy yearly data
+# Select relevant columns for yearly data, pivot longer, separate column_name into prefix, year, and suffix,
+# handle missing year values, create a tidy column name, select relevant columns, pivot wider
+mlb_yearly <- ml_pay %>%
+  select(Team.name.2014, starts_with("p"), starts_with("X")) %>%
+  pivot_longer(cols = -Team.name.2014, names_to = "column_name", values_to = "value") %>%
+  separate(col = "column_name", into = c("prefix", "year", "suffix"), sep = "(?<=[a-z])(?=[0-9])") %>%
+  mutate(year = if_else(is.na(year), "NA", year)) %>% # Handle missing year values
+  mutate(tidy_col_name = case_when(
+    prefix == "p" & suffix == "" ~ "payroll",
+    prefix == "X" & suffix == "pct" ~ "pct_wins",
+    prefix == "X" & suffix != "pct" ~ "num_wins",
+    TRUE ~ NA_character_ # Ensure all cases are covered
+  )) %>%
+  select(-prefix, -suffix) %>%
+  pivot_wider(names_from = tidy_col_name, values_from = value)
+
+# Renaming team column for consistency
+colnames(mlb_yearly)[1] <- "team"
+
+# Print the tibbles
+print(mlb_aggregate)
+print(mlb_yearly)
+
+# Check the number of rows
+nrow(mlb_aggregate)
+nrow(mlb_yearly)
+
+#########################################################################
+#1.3	Quality control (15 points)
+
+library(tidyverse)
+
+# Read the dataset
+mlb_yearly <- read.csv("C:\\Users\\User\\OneDrive\\FRESHMAN\\3rd yr - 2nd Sem\\Data Mining and Wrangling\\ml_pay.rdata")
+
+# Compute mlb_aggregate_computed
+mlb_aggregate_computed <- mlb_yearly %>%
+  group_by(Team.name.2014) %>%  # Replace team_column_name with the actual name of the column containing team names
+  summarise(
+    payroll_aggregate_computed = sum(across(starts_with("payroll_")), na.rm = TRUE),  
+    pct_wins_aggregate_computed = mean(sum(across(starts_with("pct_wins_x")), na.rm = TRUE), na.rm = TRUE) / 17  
+  ) 
+
+# Plot payroll across years for each team
+ggplot(mlb_yearly, aes(x = year, y = payroll)) +
+  geom_line() +
+  facet_wrap(~team, scales = "free_y") +
+  geom_hline(data = mlb_aggregate_computed, aes(yintercept = payroll_aggregate_computed), color = "red", linetype = "dashed") +
+  labs(x = "Year", y = "Payroll", title = "Payroll Across Years by Team") +
+  theme_minimal()
+
+# Create scatter plot for payroll_aggregate
+plot_payroll <- ggplot(mlb_aggregate_joined, aes(x = payroll_aggregate, y = payroll_aggregate_computed)) +
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "red") +
+  labs(x = "payroll_aggregate", y = "payroll_aggregate_computed", title = "Payroll Aggregate vs Computed") +
+  theme_minimal()
+
+# Create scatter plot for pct_wins_aggregate
+plot_pct_wins <- ggplot(mlb_aggregate_joined, aes(x = pct_wins_aggregate, y = pct_wins_aggregate_computed)) +
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "red") +
+  labs(x = "pct_wins_aggregate", y = "pct_wins_aggregate_computed", title = "Pct Wins Aggregate vs Computed") +
+  theme_minimal()
+
+# Display side by side
+gridExtra::grid.arrange(plot_payroll, plot_pct_wins, nrow = 1)
+
+
+###############################################################################################3
+#2.1	Payroll across years (15 points)
+
+library(ggplot2)
+
+# Plot payroll across years for each team
+ggplot(mlb_yearly, aes(x = year, y = payroll)) +
+  geom_line() +
+  facet_wrap(~team, scales = "free_y") +
+  geom_hline(data = mlb_aggregate_computed, aes(yintercept = payroll_aggregate_computed), color = "red", linetype = "dashed") +
+  labs(x = "Year", y = "Payroll", title = "Payroll Across Years by Team") +
+  theme_minimal()
+
+top_payroll_teams <- mlb_aggregate_computed %>%
+  arrange(desc(payroll_aggregate_computed)) %>%
+  head(3)
+
+print(top_payroll_teams)
+
+# Identify the top three teams with the greatest payroll_aggregate_computed
+top_payroll_teams <- mlb_aggregate_computed %>%
+  arrange(desc(payroll_aggregate_computed)) %>%
+  head(3)
+
+# Print table of top teams and their payroll_aggregate_computed
+print(top_payroll_teams)
+
+# Calculate percentage increase in payroll from 1998 to 2014
+mlb_yearly_wide <- mlb_yearly %>%
+  pivot_wider(names_from = year, values_from = payroll, names_prefix = "payroll_")
+
+mlb_yearly_wide <- mlb_yearly_wide %>%
+  mutate(pct_increase = ((`payroll_2014` - `payroll_1998`) / `payroll_1998`) * 100) %>%
+  select(team, `payroll_1998`, `payroll_2014`, pct_increase)
+
+# Identify the top three teams with the greatest percentage increase
+top_pct_increase_teams <- mlb_yearly_wide %>%
+  arrange(desc(pct_increase)) %>%
+  head(3)
+
+# Print table of top teams and their pct_increase along with payroll figures from 1998 and 2014
+print(top_pct_increase_teams)
+
+#####################################################################
+
+#2.2	Win percentage across years (15 points)
+library(ggplot2)
+
+# Plotting pct_wins vs. year faceted by team
+pct_wins_plot <- ggplot(mlb_yearly, aes(x = year, y = pct_wins)) +
+  geom_point() +
+  geom_hline(aes(yintercept = mean(pct_wins, na.rm = TRUE)), linetype = "dashed", color = "red") +
+  facet_wrap(~ team, scales = "free") +
+  labs(x = "Year", y = "Percentage of Wins", title = "Percentage of Wins Across Years for Each Team")
+
+# Display the plot
+print(pct_wins_plot)
+
+# Using dplyr to identify the top three teams by pct_wins_aggregate_computed
+top_teams_pct_wins <- mlb_aggregate_computed %>%
+  top_n(3, pct_wins_aggregate_computed)
+
+# Print table of top teams and pct_wins_aggregate_computed
+print(top_teams_pct_wins)
+
+# Using dplyr to identify the top three teams with the most erratic pct_wins
+top_teams_erratic <- mlb_yearly %>%
+  group_by(team) %>%
+  summarize(pct_wins_sd = sd(pct_wins, na.rm = TRUE)) %>%
+  top_n(3, pct_wins_sd)
+
+# Print table of top teams with erratic pct_wins
+print(top_teams_erratic)
+
+
+
+```
+
